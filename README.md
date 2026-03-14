@@ -25,14 +25,14 @@ Unified tunnel manager for Linux servers. Manages DNS tunnels (DNSTT, NoizDNS, S
 **One-liner install:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/anonvector/SlipNet/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/anonvector/slipgate/main/install.sh | sudo bash
 ```
 
 **Or build from source:**
 
 ```bash
-git clone https://github.com/anonvector/SlipNet.git
-cd SlipNet
+git clone https://github.com/anonvector/slipgate.git
+cd slipgate
 make build
 sudo ./slipgate install
 ```
