@@ -24,7 +24,7 @@ const (
 var binaryURLs = map[string]string{
 	"dnstt-server":      "https://github.com/anonvector/noizdns-deploy/releases/latest/download/dnstt-server-%s-%s",
 	"slipstream-server": "https://github.com/anonvector/slipstream/releases/latest/download/slipstream-server-%s-%s",
-	"microsocks":        "https://github.com/anonvector/noizdns-deploy/releases/latest/download/microsocks-%s-%s",
+	"microsocks":        "https://github.com/anonvector/slipgate/releases/latest/download/microsocks-%s-%s",
 	"caddy-naive":       "https://github.com/nickchn/naiveproxy/releases/latest/download/caddy-naive-%s-%s",
 }
 
