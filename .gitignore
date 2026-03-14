@@ -1,4 +1,6 @@
 # Build artifacts
+slipgate
+slipgate-linux-*
 caddy
 caddy-naive
 

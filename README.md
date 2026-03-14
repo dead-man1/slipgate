@@ -1,227 +1,152 @@
-# SlipGate — NaiveProxy + SSH Server Setup
+# SlipGate
 
-Interactive setup script that configures a server for use with the SlipNet Android VPN app. Builds Caddy with [klzgrad's forwardproxy](https://github.com/klzgrad/forwardproxy) plugin (NaiveProxy), configures automatic TLS via Let's Encrypt, and serves a decoy website to resist probe detection.
+Unified tunnel manager for Linux servers. Manages DNS tunnels (DNSTT, Slipstream) and HTTPS proxies (NaiveProxy) with systemd services, multi-tunnel DNS routing, and user management. Designed for use with the [SlipNet](https://github.com/anonvector/SlipNet) Android VPN app.
+
+## Features
+
+- **Multi-transport**: DNSTT (DNS-over-TCP tunnel), Slipstream (QUIC-based DNS), NaiveProxy (HTTPS with Caddy)
+- **Dual backend**: SOCKS5 proxy (microsocks) or SSH forwarding
+- **DNS routing**: Single-tunnel or multi-tunnel mode with domain-based dispatch
+- **User management**: Managed SSH + SOCKS credentials per user
+- **Interactive TUI + CLI**: Menu-driven setup or scriptable subcommands
+- **Systemd integration**: Service creation, lifecycle, and logs
+- **Auto-TLS**: Let's Encrypt via Caddy for NaiveProxy tunnels
+- **Self-update**: Version checking and binary replacement from GitHub releases
+- **Client sharing**: Generates `slipnet://` URIs for one-tap app import
 
 ## Requirements
 
-- **OS**: Ubuntu 20.04+ or Debian 11+
-- **Domain**: A domain with a DNS A record pointed at your server's IP
-- **Ports**: 80 and 443 must be available (not used by Apache, Nginx, etc.)
-- **SSH** *(optional)*: An SSH server already running — only needed if you enable SSH tunnel access for users
+- **OS**: Linux (Ubuntu 20.04+, Debian 11+, or similar)
+- **Domain**: DNS A record pointed at your server (required for DNS tunnels and NaiveProxy)
+- **Ports**: 53/udp (DNS tunnels), 443/tcp (NaiveProxy)
 
 ## Quick Start
 
-**Option 1 — Clone and run:**
+**One-liner install:**
 
 ```bash
-git clone https://github.com/anonvector/slipgate.git
-cd slipgate
-sudo bash setup.sh
+curl -fsSL https://raw.githubusercontent.com/anonvector/SlipNet/main/install.sh | sudo bash
 ```
 
-**Option 2 — One-liner:**
+**Or build from source:**
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/anonvector/slipgate/main/setup.sh)
+git clone https://github.com/anonvector/SlipNet.git
+cd SlipNet
+make build
+sudo ./slipgate install
 ```
 
-## Menu
+Then launch the interactive menu:
 
-The script presents a menu with all available actions:
-
-```
-══════════════════════════════════════════
-  SlipNet Server — NaiveProxy + SSH
-══════════════════════════════════════════
-  Status: not installed
-
-  1) Install         Set up NaiveProxy server
-  2) Reconfigure     Change domain/email/decoy
-  3) Show config     Print current configuration
-  4) Uninstall       Remove everything
-  5) Manage users    Add/delete/list proxy+SSH users
-  0) Exit
+```bash
+sudo slipgate
 ```
 
-- **Install** — prompts for domain, email, credentials, and decoy site, then builds and starts everything
-- **Reconfigure** — shows current values, lets you change domain/email/decoy, restarts the service
-- **Show config** — prints current configuration and user list with SSH status
-- **Uninstall** — stops the service and removes all files (binary, config, systemd unit, SSH users, UFW rules)
-- **Manage users** — add, delete, or list proxy users (SSH access is optional per user)
-
-## What It Does
-
-1. Verifies OS compatibility and that ports 80/443 are free
-2. Installs dependencies (curl, git, Go 1.21+)
-3. Builds Caddy with the NaiveProxy forwardproxy plugin using xcaddy
-4. Creates a Caddyfile with TLS, forward proxy auth, and a decoy reverse proxy
-5. Optionally creates an SSH tunnel user (default: **no** — proxy-only)
-6. Creates and enables a `caddy-naive` systemd service
-7. Opens firewall ports if UFW is active
-8. Starts the service and waits for TLS certificate issuance
-
-## How It Works
+## CLI Usage
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                         DEVICE                               │
-│                                                              │
-│  ┌─────────┐    ┌──────────────────┐    ┌────────────────┐  │
-│  │  Apps    │───>│  TUN Interface   │───>│ hev-socks5-    │  │
-│  │ (Chrome, │    │  (VPN capture)   │    │ tunnel         │  │
-│  │  etc.)   │    └──────────────────┘    │ (tun2socks)    │  │
-│  └─────────┘                             └───────┬────────┘  │
-│                                                  │           │
-│                                          SOCKS5  │           │
-│                                                  v           │
-│                                          ┌───────────────┐   │
-│                                          │ SSH Tunnel    │   │
-│                                          │ SOCKS5 server │   │
-│                                          │ (port 1080)   │   │
-│                                          └───────┬───────┘   │
-│                                                  │           │
-│                                     SSH channels │           │
-│                                    (direct-tcpip)│           │
-│                                                  v           │
-│                                          ┌───────────────┐   │
-│                                          │  NaiveProxy   │   │
-│                                          │  SOCKS5 proxy │   │
-│                                          │  (port 1081)  │   │
-│                                          └───────┬───────┘   │
-│                                                  │           │
-└──────────────────────────────────────────────────┼───────────┘
-                                                   │
-                              HTTPS (looks like    │
-                              normal Chrome        │
-                              browsing to ISP)     │
-                                                   v
-┌──────────────────────────────────────────────────────────────┐
-│                         SERVER                               │
-│                                                              │
-│  ┌─────────────────┐     ┌──────────────┐     ┌──────────┐  │
-│  │  Caddy + forward│────>│  SSH Server  │────>│ Internet │  │
-│  │  proxy (443)    │     │  (port 22)   │     │          │  │
-│  │                 │     └──────────────┘     └──────────┘  │
-│  │  TLS termination│                                        │
-│  │  + decoy website│  <── probes see a normal website       │
-│  └─────────────────┘                                        │
-└──────────────────────────────────────────────────────────────┘
+slipgate                        # Interactive TUI
+slipgate install                # Install dependencies and configure server
+slipgate uninstall              # Remove everything
+slipgate update                 # Check for updates and self-update
+
+slipgate tunnel add             # Add a new tunnel (interactive)
+slipgate tunnel remove [tag]    # Remove a tunnel
+slipgate tunnel start [tag]     # Start a tunnel
+slipgate tunnel stop [tag]      # Stop a tunnel
+slipgate tunnel status          # Show all tunnel statuses
+slipgate tunnel share [tag]     # Generate slipnet:// URI for clients
+slipgate tunnel logs [tag]      # View tunnel logs
+
+slipgate router status          # Show DNS routing config
+slipgate router mode            # Switch between single/multi mode
+slipgate router switch          # Change active tunnel (single mode)
+
+slipgate users                  # Manage SSH/SOCKS users
+slipgate config export          # Export configuration
+slipgate config import          # Import configuration
 ```
 
-**What the ISP/censor sees:** Your phone making a normal HTTPS connection to `your-domain.com:443` — identical to regular Chrome browsing. No VPN signatures.
-
-**What actually happens inside that HTTPS:**
+## Architecture
 
 ```
-App traffic → SOCKS5 → SSH tunnel → NaiveProxy → HTTPS CONNECT → Caddy → SSH → Internet
+                        ┌─────────────────────────────────┐
+                        │           SERVER                 │
+                        │                                  │
+  DNS queries ─────────>│  ┌───────────────────────────┐   │
+  (port 53)             │  │      DNS Router            │   │
+                        │  │  single / multi mode       │   │
+                        │  └──┬──────┬──────┬───────────┘   │
+                        │     │      │      │               │
+                        │     v      v      v               │
+                        │  ┌─────┐┌─────┐┌───────────┐     │
+                        │  │DNSTT││Slip-││Slipstream │     │
+                        │  │     ││stream││           │     │
+                        │  └──┬──┘└──┬──┘└─────┬─────┘     │
+                        │     │      │         │            │
+                        │     v      v         v            │
+  HTTPS (port 443) ────>│  ┌──────────────────────────┐    │
+                        │  │   NaiveProxy (Caddy)      │    │
+                        │  │   + decoy website         │    │
+                        │  └────────────┬──────────────┘    │
+                        │               │                   │
+                        │               v                   │
+                        │  ┌──────────────────────────┐    │
+                        │  │  Backend                  │    │
+                        │  │  SOCKS5 (microsocks)      │    │
+                        │  │  or SSH forwarding        │    │
+                        │  └────────────┬──────────────┘    │
+                        │               │                   │
+                        │               v                   │
+                        │           Internet                │
+                        └─────────────────────────────────┘
 ```
 
-## SlipNet App Configuration
+### Transport Types
 
-After setup completes, create a profile in the SlipNet app with these settings:
+| Transport | Protocol | Port | Description |
+|-----------|----------|------|-------------|
+| **DNSTT** | DNS-over-TCP | 53/udp | Curve25519 encrypted DNS tunnel. Supports DNSTT and NoizDNS clients |
+| **Slipstream** | QUIC DNS | 53/udp | QUIC-based tunnel with certificate authentication |
+| **NaiveProxy** | HTTPS | 443/tcp | Caddy with forwardproxy plugin. Auto-TLS via Let's Encrypt. Probe-resistant with decoy site |
 
-| App Setting    | Value                          |
-|----------------|--------------------------------|
-| Tunnel Type    | NaiveProxy + SSH               |
-| Server         | your-domain.com                |
-| Server Port    | 443                            |
-| Proxy Username | *(shown after setup)*          |
-| Proxy Password | *(shown after setup)*          |
-| SSH Port       | 22 *(only if SSH enabled)*     |
-| SSH Username   | *(only if SSH enabled)*        |
-| SSH Password   | *(only if SSH enabled)*        |
+### Routing Modes
 
-The NaiveProxy connection carries your SSH tunnel through an HTTPS connection that looks like normal web traffic to network observers. SSH tunnel access is **optional** — during install or when adding users, answer `y` to "Create SSH tunnel access?" to enable it. By default, users are proxy-only.
+- **Single mode**: One active tunnel listens directly on port 53
+- **Multi mode**: DNS router on port 53 dispatches queries by domain to different tunnels running on local ports
+
+## Client Configuration
+
+After creating a tunnel, generate a shareable config:
+
+```bash
+sudo slipgate tunnel share mytunnel
+```
+
+This outputs a `slipnet://` URI that can be scanned or imported into the SlipNet Android app.
 
 ## File Locations
 
 | Path | Description |
 |------|-------------|
-| `/usr/bin/caddy-naive` | Caddy binary with forwardproxy plugin |
-| `/etc/caddy-naive/Caddyfile` | Caddy configuration |
-| `/etc/systemd/system/caddy-naive.service` | Systemd unit file |
+| `/etc/slipgate/config.json` | Main configuration |
+| `/etc/slipgate/tunnels/` | Per-tunnel keys, certs, and configs |
+| `/usr/local/bin/slipgate` | SlipGate binary |
+| `/usr/local/bin/dnstt-server` | DNSTT transport binary |
+| `/usr/local/bin/slipstream-server` | Slipstream transport binary |
+| `/usr/local/bin/caddy-naive` | Caddy with NaiveProxy plugin |
+| `/usr/local/bin/microsocks` | SOCKS5 proxy binary |
 
-## Managing the Service
-
-```bash
-# Check status
-systemctl status caddy-naive
-
-# View logs
-journalctl -u caddy-naive -f
-
-# Restart
-systemctl restart caddy-naive
-
-# Stop
-systemctl stop caddy-naive
-```
-
-## Troubleshooting
-
-### TLS certificate not obtained
-- Verify your domain's DNS A record points to this server: `dig +short your-domain.com`
-- Ensure port 80 is open (Let's Encrypt uses HTTP-01 challenge)
-- Check logs: `journalctl -u caddy-naive --no-pager -n 50`
-
-### Port already in use
-- Find what's using the port: `ss -tlnp | grep ':80\|:443'`
-- Common culprits: Apache (`apache2`), Nginx (`nginx`), another Caddy instance
-- Stop the conflicting service before running setup
-
-### Connection refused in SlipNet app
-- Verify the service is running: `systemctl status caddy-naive`
-- Test from the server: `curl -I https://your-domain.com`
-- Test proxy auth: `curl --proxy https://user:pass@your-domain.com https://ifconfig.me`
-
-### Decoy website not loading
-- The reverse proxy to the decoy site requires the upstream to be accessible
-- Try a different decoy URL if the default doesn't work
-
-## Manual Setup
-
-For advanced users who want to customize the configuration:
-
-1. **Install Go 1.21+** from https://go.dev/dl/
-
-2. **Build Caddy with forwardproxy:**
-   ```bash
-   go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
-   ~/go/bin/xcaddy build --with github.com/caddyserver/forwardproxy=github.com/klzgrad/forwardproxy@naive
-   sudo mv caddy /usr/bin/caddy-naive
-   sudo setcap cap_net_bind_service=+ep /usr/bin/caddy-naive
-   ```
-
-3. **Create Caddyfile** at `/etc/caddy-naive/Caddyfile`:
-   ```
-   {
-       order forward_proxy before file_server
-   }
-   :443, your-domain.com {
-       tls your-email@example.com
-       route {
-           forward_proxy {
-               basic_auth username password
-               hide_ip
-               hide_via
-               probe_resistance
-           }
-           reverse_proxy https://www.wikipedia.org {
-               header_up Host {upstream_hostport}
-           }
-       }
-   }
-   ```
-
-4. **Create systemd service** and start it (see `setup.sh` for the unit file).
-
-## Uninstall
-
-Run the same script and choose option 4:
+## Building
 
 ```bash
-sudo bash setup.sh
-# → Choose 4) Uninstall
+make build              # Build for current platform
+make build-linux        # Cross-compile for linux/amd64 and linux/arm64
+make test               # Run tests
+make release            # Build release binaries
 ```
 
-This stops the service and removes the binary, Caddyfile, systemd unit, and UFW rules.
+## License
+
+MIT
