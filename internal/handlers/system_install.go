@@ -366,17 +366,25 @@ func handleSystemInstall(ctx *actions.Context) error {
 
 	out.Print("")
 	out.Print("    DNS Records Required:")
-	shownDomains := make(map[string]bool)
+	shownRecords := make(map[string]bool)
 	for _, t := range allTunnels {
-		if shownDomains[t.Domain] {
-			continue
-		}
-		shownDomains[t.Domain] = true
 		if t.Transport == config.TransportNaive {
-			out.Print(fmt.Sprintf("      A record: %s → your server IP", t.Domain))
+			rec := fmt.Sprintf("A:%s", t.Domain)
+			if !shownRecords[rec] {
+				shownRecords[rec] = true
+				out.Print(fmt.Sprintf("      A  record: %s → your server IP", t.Domain))
+			}
 		} else {
-			out.Print(fmt.Sprintf("      A  record: ns.%s → your server IP", baseDomain(t.Domain)))
-			out.Print(fmt.Sprintf("      NS record: %s → ns.%s", t.Domain, baseDomain(t.Domain)))
+			aRec := fmt.Sprintf("A:ns.%s", baseDomain(t.Domain))
+			if !shownRecords[aRec] {
+				shownRecords[aRec] = true
+				out.Print(fmt.Sprintf("      A  record: ns.%s → your server IP", baseDomain(t.Domain)))
+			}
+			nsRec := fmt.Sprintf("NS:%s", t.Domain)
+			if !shownRecords[nsRec] {
+				shownRecords[nsRec] = true
+				out.Print(fmt.Sprintf("      NS record: %s → ns.%s", t.Domain, baseDomain(t.Domain)))
+			}
 		}
 	}
 	out.Print("")
