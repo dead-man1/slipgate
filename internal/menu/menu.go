@@ -153,6 +153,12 @@ func runAction(id string, cfg *config.Config) error {
 		return fmt.Errorf("action %q not found", id)
 	}
 
+	// Reload config to pick up changes from install/add/remove
+	freshCfg, err := config.Load()
+	if err == nil {
+		cfg = freshCfg
+	}
+
 	ctx := &actions.Context{
 		Args:   make(map[string]string),
 		Output: &actions.StdOutput{},
