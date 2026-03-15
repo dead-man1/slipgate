@@ -154,6 +154,18 @@ func handleSystemInstall(ctx *actions.Context) error {
 			continue
 		}
 
+		// Ask for MTU for DNSTT tunnels
+		mtu := config.DefaultMTU
+		if selectedTransport == config.TransportDNSTT {
+			mtuStr, err := prompt.String("MTU", fmt.Sprintf("%d", config.DefaultMTU))
+			if err != nil {
+				return err
+			}
+			if n, e := fmt.Sscanf(mtuStr, "%d", &mtu); n != 1 || e != nil {
+				mtu = config.DefaultMTU
+			}
+		}
+
 		var sharedNaive *config.NaiveConfig
 
 			for bIdx, b := range backends {
@@ -210,7 +222,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 					return actions.NewError(actions.SystemInstall, "key generation failed", err)
 				}
 				tunnel.DNSTT = &config.DNSTTConfig{
-					MTU:        config.DefaultMTU,
+					MTU:        mtu,
 					PrivateKey: privKeyPath,
 					PublicKey:  pubKey,
 				}
