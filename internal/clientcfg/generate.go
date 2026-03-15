@@ -15,16 +15,26 @@ type URIOptions struct {
 	Password   string // override SOCKS/SSH password
 }
 
+// b64 encodes a string as base64 (matching Android's Base64.NO_WRAP).
+func b64(s string) string {
+	if s == "" {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString([]byte(s))
+}
+
 // GenerateURI builds a slipnet:// URI from tunnel + backend config.
 func GenerateURI(tunnel *config.TunnelConfig, backend *config.BackendConfig, cfg *config.Config, opts URIOptions) (string, error) {
 	var fields [TotalFields]string
 
-	// Defaults
-	fields[FVersion] = "16"
+	// Version and type
+	fields[FVersion] = "17"
 	fields[FTunnelType] = GetTunnelType(tunnel.Transport, tunnel.Backend, opts.ClientMode)
 	fields[FName] = tunnel.Tag
 	fields[FDomain] = tunnel.Domain
-	fields[FResolvers] = "" // user configures in app
+
+	// Defaults
+	fields[FResolvers] = ""
 	fields[FAuthMode] = "0"
 	fields[FKeepAlive] = "5000"
 	fields[FCongestionControl] = "bbr"
@@ -32,16 +42,22 @@ func GenerateURI(tunnel *config.TunnelConfig, backend *config.BackendConfig, cfg
 	fields[FTCPListenHost] = "127.0.0.1"
 	fields[FGSOEnabled] = "0"
 	fields[FSSHEnabled] = "0"
+	fields[FSSHPort] = "22"
 	fields[FFwdDNSThroughSSH] = "0"
-	fields[FSSHHost] = "127.0.0.1"
+	fields[FSSHHost] = getServerIP()
 	fields[FUseServerDNS] = "0"
 	fields[FDNSTransport] = "udp"
 	fields[FSSHAuthType] = "password"
+	fields[FSSHPrivateKey] = b64("")
+	fields[FSSHKeyPassphrase] = b64("")
+	fields[FTorBridgeLines] = b64("")
 	fields[FDNSTTAuthoritative] = "0"
 	fields[FNaivePort] = "443"
+	fields[FNaivePass] = b64("")
 	fields[FIsLocked] = "0"
 	fields[FExpirationDate] = "0"
 	fields[FAllowSharing] = "0"
+	fields[FResolversHidden] = "0"
 
 	// Transport-specific
 	switch tunnel.Transport {
@@ -51,51 +67,37 @@ func GenerateURI(tunnel *config.TunnelConfig, backend *config.BackendConfig, cfg
 		}
 
 	case config.TransportSlipstream:
-		// Slipstream uses cert, no pubkey field needed
+		// No pubkey field needed
 
 	case config.TransportNaive:
 		if tunnel.Naive != nil {
 			fields[FNaivePort] = fmt.Sprintf("%d", tunnel.Naive.Port)
 			fields[FNaiveUser] = tunnel.Naive.User
-			if tunnel.Naive.Password != "" {
-				fields[FNaivePass] = base64.StdEncoding.EncodeToString([]byte(tunnel.Naive.Password))
-			}
+			fields[FNaivePass] = b64(tunnel.Naive.Password)
 		}
 	}
 
-	// User credentials
-	socksUser := ""
-	socksPass := ""
+	// User credentials — always populate both SOCKS and SSH fields
+	// The user/password is shared across SOCKS and SSH in slipgate
+	username := opts.Username
+	password := opts.Password
 
-	if opts.Username != "" {
-		socksUser = opts.Username
-		socksPass = opts.Password
-	} else if backend != nil && backend.Type == config.BackendSOCKS && backend.SOCKS != nil {
-		socksUser = backend.SOCKS.User
-		socksPass = backend.SOCKS.Password
+	if username == "" && backend != nil && backend.Type == config.BackendSOCKS && backend.SOCKS != nil {
+		username = backend.SOCKS.User
+		password = backend.SOCKS.Password
 	}
 
-	fields[FSOCKSUser] = socksUser
-	fields[FSOCKSPass] = socksPass
+	// SOCKS credentials (fields 12-13) — always set when we have a user
+	fields[FSOCKSUser] = username
+	fields[FSOCKSPass] = password
 
-	// SSH backend
+	// SSH fields (14-17, 19) — set for SSH tunnel types
 	if tunnel.Backend == config.BackendSSH {
 		fields[FSSHEnabled] = "1"
-		if opts.Username != "" {
-			fields[FSSHUser] = opts.Username
-			fields[FSSHPass] = opts.Password
-		}
+		fields[FSSHUser] = username
+		fields[FSSHPass] = password
 		fields[FSSHPort] = "22"
-	}
-
-	// NaiveProxy credentials override
-	if tunnel.Transport == config.TransportNaive && tunnel.Naive != nil {
-		if tunnel.Naive.User != "" {
-			fields[FNaiveUser] = tunnel.Naive.User
-		}
-		if tunnel.Naive.Password != "" {
-			fields[FNaivePass] = base64.StdEncoding.EncodeToString([]byte(tunnel.Naive.Password))
-		}
+		fields[FSSHHost] = getServerIP()
 	}
 
 	return Encode(fields), nil

@@ -2,15 +2,15 @@ package clientcfg
 
 import "github.com/anonvector/slipgate/internal/config"
 
-// v16 field positions (pipe-delimited, ~35 fields).
+// v17 field positions (pipe-delimited, 38 fields).
 // Matches the SlipNet Android app's ConfigImporter/ConfigExporter.
 const (
-	FVersion            = 0  // always "16"
+	FVersion            = 0  // "17"
 	FTunnelType         = 1  // dnstt, sayedns, dnstt_ssh, sayedns_ssh, naive, naive_ssh, ss, slipstream_ssh
 	FName               = 2  // profile name
 	FDomain             = 3  // tunnel domain
 	FResolvers          = 4  // comma-separated "host:port:auth"
-	FAuthMode           = 5  // "0"
+	FAuthMode           = 5  // "0" or "1"
 	FKeepAlive          = 6  // "5000"
 	FCongestionControl  = 7  // "bbr"
 	FTCPListenPort      = 8  // "1080"
@@ -24,15 +24,15 @@ const (
 	FSSHPass            = 16 // SSH password
 	FSSHPort            = 17 // "22"
 	FFwdDNSThroughSSH   = 18 // "0" (deprecated)
-	FSSHHost            = 19 // "127.0.0.1"
+	FSSHHost            = 19 // SSH host address
 	FUseServerDNS       = 20 // "0" (deprecated)
-	FDoHURL             = 21 // DoH URL (empty)
+	FDoHURL             = 21 // DoH URL
 	FDNSTransport       = 22 // "udp"
 	FSSHAuthType        = 23 // "password"
-	FSSHPrivateKey      = 24 // "" (base64)
-	FSSHKeyPassphrase   = 25 // "" (base64)
-	FTorBridgeLines     = 26 // "" (base64)
-	FDNSTTAuthoritative = 27 // "0"
+	FSSHPrivateKey      = 24 // base64-encoded
+	FSSHKeyPassphrase   = 25 // base64-encoded
+	FTorBridgeLines     = 26 // base64-encoded
+	FDNSTTAuthoritative = 27 // "0" or "1"
 	FNaivePort          = 28 // "443"
 	FNaiveUser          = 29 // NaiveProxy username
 	FNaivePass          = 30 // NaiveProxy password (base64)
@@ -40,7 +40,10 @@ const (
 	FLockPasswordHash   = 32 // ""
 	FExpirationDate     = 33 // "0"
 	FAllowSharing       = 34 // "0"
-	TotalFields         = 35
+	FBoundDeviceId      = 35 // ""
+	FResolversHidden    = 36 // "0" (v17)
+	FHiddenResolvers    = 37 // "" (v17)
+	TotalFields         = 38
 )
 
 // Client modes for DNSTT transport (server is the same, client behavior differs).
