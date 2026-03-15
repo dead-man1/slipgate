@@ -125,23 +125,10 @@ func handleSystemInstall(ctx *actions.Context) error {
 		return nil
 	}
 
-	// Pick transport — skip prompt if only one was installed
+	// Pick transport — default to first installed, skip prompt
 	selectedTransport := transports[0]
-	if len(transports) > 1 {
-		var transportOptions []actions.SelectOption
-		for _, opt := range actions.TransportOptions {
-			for _, t := range transports {
-				if opt.Value == t {
-					transportOptions = append(transportOptions, opt)
-				}
-			}
-		}
-		selectedTransport, err = prompt.Select("Which transport for this tunnel", transportOptions)
-		if err != nil {
-			return err
-		}
-	} else {
-		out.Info(fmt.Sprintf("Using transport: %s", selectedTransport))
+	{
+		out.Info(fmt.Sprintf("Using transport: %s (add more tunnels later with 'slipgate tunnel add')", selectedTransport))
 	}
 
 	// Backend
