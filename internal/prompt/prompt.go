@@ -54,7 +54,7 @@ func Select(label string, options []actions.SelectOption) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	line = strings.TrimSpace(line)
+	line = sanitize(strings.TrimSpace(line))
 
 	if n, err := strconv.Atoi(line); err == nil && n >= 1 && n <= len(options) {
 		return options[n-1].Value, nil
@@ -82,7 +82,7 @@ func MultiSelect(label string, options []actions.SelectOption) ([]string, error)
 	if err != nil {
 		return nil, err
 	}
-	line = strings.TrimSpace(line)
+	line = sanitize(strings.TrimSpace(line))
 
 	allIdx := fmt.Sprintf("%d", len(options)+1)
 	if strings.EqualFold(line, "all") || line == allIdx {
