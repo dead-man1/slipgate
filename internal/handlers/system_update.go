@@ -16,43 +16,33 @@ import (
 func handleSystemUpdate(ctx *actions.Context) error {
 	out := ctx.Output
 	out.Info("Current version: " + version.String())
-	out.Info("Checking for updates...")
+	out.Info("Downloading latest slipgate...")
 
-	newVersion, downloadURL, err := binary.CheckUpdate()
+	downloadURL := fmt.Sprintf("%s/latest/download/slipgate-%s-%s",
+		"https://github.com/anonvector/slipgate/releases", runtime.GOOS, runtime.GOARCH)
+
+	tmpPath, err := binary.Download(downloadURL)
 	if err != nil {
-		return actions.NewError(actions.SystemUpdate, "failed to check for updates", err)
+		return actions.NewError(actions.SystemUpdate, "failed to download update", err)
+	}
+	defer os.Remove(tmpPath)
+
+	execPath, err := os.Executable()
+	if err != nil {
+		return actions.NewError(actions.SystemUpdate, "failed to find current binary", err)
 	}
 
-	if newVersion == "" {
-		out.Success("Already up to date")
-	} else {
-		out.Info(fmt.Sprintf("New version available: %s", newVersion))
-		out.Info("Downloading slipgate...")
-
-		tmpPath, err := binary.Download(downloadURL)
-		if err != nil {
-			return actions.NewError(actions.SystemUpdate, "failed to download update", err)
-		}
-		defer os.Remove(tmpPath)
-
-		// Replace current binary
-		execPath, err := os.Executable()
-		if err != nil {
-			return actions.NewError(actions.SystemUpdate, "failed to find current binary", err)
-		}
-
-		if runtime.GOOS == "linux" {
-			if err := os.Rename(tmpPath, execPath); err != nil {
-				cpCmd := exec.Command("cp", tmpPath, execPath)
-				if err := cpCmd.Run(); err != nil {
-					return actions.NewError(actions.SystemUpdate, "failed to replace binary", err)
-				}
+	if runtime.GOOS == "linux" {
+		if err := os.Rename(tmpPath, execPath); err != nil {
+			cpCmd := exec.Command("cp", tmpPath, execPath)
+			if err := cpCmd.Run(); err != nil {
+				return actions.NewError(actions.SystemUpdate, "failed to replace binary", err)
 			}
-			os.Chmod(execPath, 0755)
 		}
-
-		out.Success(fmt.Sprintf("Updated slipgate to %s", newVersion))
+		os.Chmod(execPath, 0755)
 	}
+
+	out.Success("slipgate updated")
 
 	// Update transport binaries
 	out.Print("")
