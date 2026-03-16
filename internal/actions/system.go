@@ -5,9 +5,6 @@ func init() {
 		ID:       SystemInstall,
 		Name:     "Install",
 		Category: "system",
-		Inputs: []InputField{
-			{Key: "bin-dir", Label: "Offline binary directory"},
-		},
 	})
 
 	Register(&Action{
@@ -32,7 +29,7 @@ func init() {
 				{Value: "remove", Label: "Remove user"},
 				{Value: "list", Label: "List users"},
 			}},
-			{Key: "username", Label: "Username", DependsOn: "action"},
+			{Key: "username", Label: "Username", DependsOn: "action", DependsOnValues: []string{"add", "remove"}},
 		},
 	})
 

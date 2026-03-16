@@ -141,8 +141,23 @@ func CollectInputs(a *actions.Action, existing map[string]string) (map[string]st
 			continue
 		}
 
-		if input.DependsOn != "" && result[input.DependsOn] == "" {
-			continue
+		if input.DependsOn != "" {
+			depVal := result[input.DependsOn]
+			if depVal == "" {
+				continue
+			}
+			if len(input.DependsOnValues) > 0 {
+				match := false
+				for _, v := range input.DependsOnValues {
+					if v == depVal {
+						match = true
+						break
+					}
+				}
+				if !match {
+					continue
+				}
+			}
 		}
 
 		if len(input.Options) > 0 {

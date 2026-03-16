@@ -37,7 +37,8 @@ type InputField struct {
 	Default     string
 	Options     []SelectOption // if non-empty, present as select
 	Validate    func(string) error
-	DependsOn   string // only show if this key has a value
+	DependsOn       string   // only show if this key has a value
+	DependsOnValues []string // if set, only show when DependsOn value is one of these
 	Description string
 }
 
