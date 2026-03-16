@@ -42,6 +42,12 @@ echo "             | |                         "
 echo "             |_|                         "
 echo -e "${NC}"
 
+# Kill any running slipgate/tunnel processes and remove old binary
+killall slipgate 2>/dev/null || true
+killall dnstt-server 2>/dev/null || true
+killall slipstream-server 2>/dev/null || true
+rm -f "${INSTALL_DIR}/slipgate"
+
 info "Downloading slipgate ($OS/$ARCH)..."
 if command -v curl &>/dev/null; then
     curl -fsSL "$URL" -o "${INSTALL_DIR}/slipgate"
