@@ -46,6 +46,10 @@ func createNaiveService(tunnel *config.TunnelConfig, cfg *config.Config) error {
 		return err
 	}
 
+	// Restart if already running (e.g. Caddyfile updated with new credentials)
+	if _, err := service.Status(unit.Name); err == nil {
+		return service.Restart(unit.Name)
+	}
 	return service.Start(unit.Name)
 }
 

@@ -160,6 +160,11 @@ func showUserConfigs(cfg *config.Config, username, password string, out actions.
 			continue
 		}
 
+		// Show public key for DNSTT tunnels
+		if t.Transport == config.TransportDNSTT && t.DNSTT != nil && t.DNSTT.PublicKey != "" {
+			out.Print(fmt.Sprintf("  [%s] Public Key: %s", t.Tag, t.DNSTT.PublicKey))
+		}
+
 		modes := []string{""}
 		if t.Transport == config.TransportDNSTT {
 			modes = []string{clientcfg.ClientModeDNSTT, clientcfg.ClientModeNoizDNS}

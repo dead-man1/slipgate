@@ -76,7 +76,7 @@ func MultiSelect(label string, options []actions.SelectOption) ([]string, error)
 		fmt.Printf("    %d) %s\n", i+1, opt.Label)
 	}
 	fmt.Printf("    %d) All\n", len(options)+1)
-	fmt.Print("  Choice: ")
+	fmt.Print("  Choice (comma-separated, e.g. 1,3,4): ")
 
 	line, err := reader.ReadString('\n')
 	if err != nil {
@@ -84,20 +84,31 @@ func MultiSelect(label string, options []actions.SelectOption) ([]string, error)
 	}
 	line = sanitize(strings.TrimSpace(line))
 
-	allIdx := fmt.Sprintf("%d", len(options)+1)
-	if strings.EqualFold(line, "all") || line == allIdx {
-		var result []string
-		for _, opt := range options {
-			result = append(result, opt.Value)
-		}
-		return result, nil
-	}
-
+	allIdx := len(options) + 1
+	seen := make(map[string]bool)
 	var result []string
+
 	for _, part := range strings.Split(line, ",") {
 		part = strings.TrimSpace(part)
-		if n, err := strconv.Atoi(part); err == nil && n >= 1 && n <= len(options) {
-			result = append(result, options[n-1].Value)
+		if strings.EqualFold(part, "all") {
+			var all []string
+			for _, opt := range options {
+				all = append(all, opt.Value)
+			}
+			return all, nil
+		}
+		if n, err := strconv.Atoi(part); err == nil {
+			if n == allIdx {
+				var all []string
+				for _, opt := range options {
+					all = append(all, opt.Value)
+				}
+				return all, nil
+			}
+			if n >= 1 && n <= len(options) && !seen[options[n-1].Value] {
+				seen[options[n-1].Value] = true
+				result = append(result, options[n-1].Value)
+			}
 		}
 	}
 
