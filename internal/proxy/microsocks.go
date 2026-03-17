@@ -8,16 +8,25 @@ import (
 	"github.com/anonvector/slipgate/internal/service"
 )
 
-// SetupMicrosocks creates the systemd service for microsocks.
+// SetupMicrosocks creates the systemd service for microsocks (localhost only).
 func SetupMicrosocks() error {
-	return SetupMicrosocksWithAuth("", "")
+	return setupMicrosocks("127.0.0.1", "", "")
 }
 
-// SetupMicrosocksWithAuth creates microsocks with optional auth.
+// SetupMicrosocksWithAuth creates microsocks with optional auth (localhost only).
 func SetupMicrosocksWithAuth(user, password string) error {
+	return setupMicrosocks("127.0.0.1", user, password)
+}
+
+// SetupMicrosocksExternal creates microsocks listening on all interfaces (for direct SOCKS5).
+func SetupMicrosocksExternal(user, password string) error {
+	return setupMicrosocks("0.0.0.0", user, password)
+}
+
+func setupMicrosocks(listenAddr, user, password string) error {
 	binPath := filepath.Join(config.DefaultBinDir, "microsocks")
 
-	args := fmt.Sprintf("%s -i 127.0.0.1 -p 1080", binPath)
+	args := fmt.Sprintf("%s -i %s -p 1080", binPath, listenAddr)
 	if user != "" && password != "" {
 		args += fmt.Sprintf(" -u %s -P %s", user, password)
 	}

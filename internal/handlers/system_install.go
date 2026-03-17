@@ -64,6 +64,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 		out.Info("Downloading binaries...")
 	}
 	needsSOCKS := false
+	directSOCKS := false
 	for _, t := range transports {
 		bin, ok := config.TransportBinaries[t]
 		if !ok {
@@ -84,6 +85,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 	for _, t := range transports {
 		if t == config.TransportSOCKS {
 			needsSOCKS = true
+			directSOCKS = true
 		}
 	}
 
@@ -123,6 +125,9 @@ func handleSystemInstall(ctx *actions.Context) error {
 		}
 	}
 	if needsHTTPS {
+		if err := network.AllowPort(80, "tcp"); err != nil {
+			out.Warning("Failed to open port 80/tcp: " + err.Error())
+		}
 		if err := network.AllowPort(443, "tcp"); err != nil {
 			out.Warning("Failed to open port 443/tcp: " + err.Error())
 		}
@@ -450,7 +455,12 @@ func handleSystemInstall(ctx *actions.Context) error {
 
 	// Setup microsocks AFTER user creation so auth is configured from the start
 	if setupMicrosocks {
-		if microsocksUser != "" {
+		if directSOCKS {
+			// Direct SOCKS5 transport: listen on all interfaces
+			if err := proxy.SetupMicrosocksExternal(microsocksUser, microsocksPass); err != nil {
+				out.Warning("Failed to setup microsocks: " + err.Error())
+			}
+		} else if microsocksUser != "" {
 			if err := proxy.SetupMicrosocksWithAuth(microsocksUser, microsocksPass); err != nil {
 				out.Warning("Failed to setup microsocks: " + err.Error())
 			}
