@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/anonvector/slipgate/internal/config"
 )
@@ -30,7 +31,12 @@ func GenerateURI(tunnel *config.TunnelConfig, backend *config.BackendConfig, cfg
 	// Version and type
 	fields[FVersion] = "18"
 	fields[FTunnelType] = GetTunnelType(tunnel.Transport, tunnel.Backend, opts.ClientMode)
-	fields[FName] = tunnel.Tag
+
+	name := tunnel.Tag
+	if opts.ClientMode == ClientModeNoizDNS {
+		name = strings.ReplaceAll(name, "dnstt", "noizdns")
+	}
+	fields[FName] = name
 	fields[FDomain] = tunnel.Domain
 
 	// Defaults

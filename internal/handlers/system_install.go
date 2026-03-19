@@ -388,17 +388,17 @@ func handleSystemInstall(ctx *actions.Context) error {
 		out.Success(fmt.Sprintf("Tunnel %q started", allTunnels[i].Tag))
 	}
 
-	// Start DNS router if multi mode, or ensure single tunnel works
+	// Start DNS router whenever there are DNS tunnels (single or multi mode).
+	// dnstt-server and slipstream-server always bind to internal ports (5310+),
+	// so the DNS router must always be running to forward port 53 traffic.
 	if dnsTunnelCount > 0 {
-		if cfg.Route.Mode == "multi" {
-			out.Info("Starting DNS router (multi-tunnel mode)...")
-			if err := dnsrouter.CreateRouterService(); err != nil {
-				out.Warning("Failed to create DNS router service: " + err.Error())
-			} else if err := dnsrouter.StartRouterService(); err != nil {
-				out.Warning("Failed to start DNS router: " + err.Error())
-			} else {
-				out.Success("DNS router started on 0.0.0.0:53")
-			}
+		out.Info("Starting DNS router...")
+		if err := dnsrouter.CreateRouterService(); err != nil {
+			out.Warning("Failed to create DNS router service: " + err.Error())
+		} else if err := dnsrouter.StartRouterService(); err != nil {
+			out.Warning("Failed to start DNS router: " + err.Error())
+		} else {
+			out.Success("DNS router started on 0.0.0.0:53")
 		}
 	}
 

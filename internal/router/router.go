@@ -9,28 +9,20 @@ import (
 )
 
 // AddTunnel registers a tunnel with the routing layer.
-// In single mode: if this is the active tunnel, it listens on :53 directly.
-// In multi mode: it listens on a local port and the DNS router forwards to it.
+// DNS tunnels always use internal ports (5310+), so the DNS router must be
+// running to forward port 53 traffic regardless of single or multi mode.
 func AddTunnel(cfg *config.Config, tunnel *config.TunnelConfig) error {
 	if !tunnel.IsDNSTunnel() {
 		return nil // NaiveProxy doesn't need DNS routing
 	}
 
-	if cfg.Route.Mode == "multi" {
-		// Ensure DNS router is running
-		return ensureRouterRunning()
-	}
-
-	return nil
+	return ensureRouterRunning()
 }
 
 // RemoveTunnel unregisters a tunnel from routing.
 func RemoveTunnel(cfg *config.Config, tag string) error {
-	if cfg.Route.Mode == "multi" {
-		// Restart router to pick up new config
-		return dnsrouter.RestartRouterService()
-	}
-	return nil
+	// Restart router to pick up new config (router always runs when DNS tunnels exist)
+	return dnsrouter.RestartRouterService()
 }
 
 // SwitchActive changes the active tunnel in single mode.
