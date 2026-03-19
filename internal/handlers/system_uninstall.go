@@ -54,6 +54,20 @@ func handleSystemUninstall(ctx *actions.Context) error {
 		out.Warning("Failed to remove user: " + err.Error())
 	}
 
+	// Remove binaries
+	out.Info("Removing binaries...")
+	execPath, _ := os.Executable()
+	for _, bin := range []string{
+		"dnstt-server", "slipstream-server", "caddy-naive", "microsocks",
+	} {
+		os.Remove(config.DefaultBinDir + "/" + bin)
+	}
+
+	// Remove slipgate binary last
+	if execPath != "" {
+		os.Remove(execPath)
+	}
+
 	out.Success("Uninstall complete")
 	return nil
 }
