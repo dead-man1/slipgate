@@ -100,7 +100,7 @@ func handleSystemUsers(ctx *actions.Context) error {
 		}
 
 		// Update microsocks with auth
-		if err := proxy.SetupMicrosocksWithAuth(username, password); err != nil {
+		if err := proxy.SetupSOCKSWithAuth(username, password); err != nil {
 			out.Warning("Failed to update SOCKS proxy auth: " + err.Error())
 		}
 
@@ -139,9 +139,9 @@ func handleSystemUsers(ctx *actions.Context) error {
 
 		if len(cfg.Users) > 0 {
 			first := cfg.Users[0]
-			_ = proxy.SetupMicrosocksWithAuth(first.Username, first.Password)
+			_ = proxy.SetupSOCKSWithAuth(first.Username, first.Password)
 		} else {
-			_ = proxy.SetupMicrosocks()
+			_ = proxy.SetupSOCKS()
 		}
 
 		if err := cfg.Save(); err != nil {

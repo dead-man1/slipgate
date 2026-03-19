@@ -36,7 +36,9 @@ func handleSystemUninstall(ctx *actions.Context) error {
 	_ = service.Stop("slipgate-dnsrouter")
 	_ = service.Remove("slipgate-dnsrouter")
 
-	// Stop microsocks
+	// Stop SOCKS5 proxy (handles both old and new service names)
+	_ = service.Stop("slipgate-socks5")
+	_ = service.Remove("slipgate-socks5")
 	_ = service.Stop("slipgate-microsocks")
 	_ = service.Remove("slipgate-microsocks")
 

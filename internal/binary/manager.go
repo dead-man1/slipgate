@@ -31,7 +31,6 @@ var OfflineDir string
 var binaryURLs = map[string]string{
 	"dnstt-server":      binaryBaseURL + "/dnstt-server-%s-%s",
 	"slipstream-server": binaryBaseURL + "/slipstream-server-%s-%s",
-	"microsocks":        binaryBaseURL + "/microsocks-%s-%s",
 	"caddy-naive":       binaryBaseURL + "/caddy-naive-%s-%s",
 }
 

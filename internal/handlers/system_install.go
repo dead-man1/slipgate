@@ -64,7 +64,6 @@ func handleSystemInstall(ctx *actions.Context) error {
 	} else {
 		out.Info("Downloading binaries...")
 	}
-	needsSOCKS := false
 	directSOCKS := false
 	for _, t := range transports {
 		bin, ok := config.TransportBinaries[t]
@@ -76,26 +75,13 @@ func handleSystemInstall(ctx *actions.Context) error {
 			return actions.NewError(actions.SystemInstall, fmt.Sprintf("failed to download %s", bin), err)
 		}
 		out.Success(fmt.Sprintf("  %s (%s/%s)", bin, runtime.GOOS, runtime.GOARCH))
-
-		if t != config.TransportNaive && t != config.TransportSSH && t != config.TransportSOCKS {
-			needsSOCKS = true
-		}
 	}
 
-	// Direct SOCKS5 transport also needs microsocks
+	// Direct SOCKS5 transport needs external listen
 	for _, t := range transports {
 		if t == config.TransportSOCKS {
-			needsSOCKS = true
 			directSOCKS = true
 		}
-	}
-
-	if needsSOCKS {
-		out.Info("  Downloading microsocks...")
-		if err := binary.EnsureInstalled("microsocks"); err != nil {
-			return actions.NewError(actions.SystemInstall, "failed to download microsocks", err)
-		}
-		out.Success("  microsocks")
 	}
 
 	// ── Step 4: Configure firewall ─────────────────────────────────
@@ -170,7 +156,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 	}
 
 	var allTunnels []config.TunnelConfig
-	setupMicrosocks := false
+	setupSOCKS := false
 
 	// Walk through each installed transport
 	for tIdx, selectedTransport := range transports {
@@ -203,7 +189,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 				cfg.AddTunnel(tunnel)
 				allTunnels = append(allTunnels, tunnel)
 				if selectedTransport == config.TransportSOCKS {
-					setupMicrosocks = true
+					setupSOCKS = true
 				}
 				out.Success(fmt.Sprintf("Tunnel %q added", tag))
 			}
@@ -346,7 +332,7 @@ func handleSystemInstall(ctx *actions.Context) error {
 			allTunnels = append(allTunnels, tunnel)
 
 			if b == config.BackendSOCKS && selectedTransport != config.TransportNaive {
-				setupMicrosocks = true
+				setupSOCKS = true
 			}
 
 			_ = tIdx // used in loop
@@ -413,8 +399,8 @@ func handleSystemInstall(ctx *actions.Context) error {
 		return err
 	}
 
-	microsocksUser := ""
-	microsocksPass := ""
+	socksUser := ""
+	socksPass := ""
 
 	if createUser {
 		username, err := prompt.String("Username", "user1")
@@ -434,8 +420,8 @@ func handleSystemInstall(ctx *actions.Context) error {
 			return actions.NewError(actions.SystemInstall, "failed to create user", err)
 		}
 
-		microsocksUser = username
-		microsocksPass = password
+		socksUser = username
+		socksPass = password
 
 		cfg.AddUser(config.UserConfig{Username: username, Password: password})
 		if err := cfg.Save(); err != nil {
@@ -467,20 +453,20 @@ func handleSystemInstall(ctx *actions.Context) error {
 		}
 	}
 
-	// Setup microsocks AFTER user creation so auth is configured from the start
-	if setupMicrosocks {
+	// Setup SOCKS5 proxy AFTER user creation so auth is configured from the start
+	if setupSOCKS {
 		if directSOCKS {
 			// Direct SOCKS5 transport: listen on all interfaces
-			if err := proxy.SetupMicrosocksExternal(microsocksUser, microsocksPass); err != nil {
-				out.Warning("Failed to setup microsocks: " + err.Error())
+			if err := proxy.SetupSOCKSExternal(socksUser, socksPass); err != nil {
+				out.Warning("Failed to setup SOCKS5 proxy: " + err.Error())
 			}
-		} else if microsocksUser != "" {
-			if err := proxy.SetupMicrosocksWithAuth(microsocksUser, microsocksPass); err != nil {
-				out.Warning("Failed to setup microsocks: " + err.Error())
+		} else if socksUser != "" {
+			if err := proxy.SetupSOCKSWithAuth(socksUser, socksPass); err != nil {
+				out.Warning("Failed to setup SOCKS5 proxy: " + err.Error())
 			}
 		} else {
-			if err := proxy.SetupMicrosocks(); err != nil {
-				out.Warning("Failed to setup microsocks: " + err.Error())
+			if err := proxy.SetupSOCKS(); err != nil {
+				out.Warning("Failed to setup SOCKS5 proxy: " + err.Error())
 			}
 		}
 	}

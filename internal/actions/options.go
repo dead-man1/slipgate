@@ -17,7 +17,7 @@ var ClientModeOptions = []SelectOption{
 }
 
 var BackendOptions = []SelectOption{
-	{Value: "socks", Label: "SOCKS — SOCKS5 proxy (microsocks)"},
+	{Value: "socks", Label: "SOCKS — SOCKS5 proxy"},
 	{Value: "ssh", Label: "SSH — SSH tunnel"},
 	{Value: "both", Label: "Both — SOCKS5 + SSH tunnel"},
 }

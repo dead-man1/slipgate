@@ -10,6 +10,7 @@ import (
 	"github.com/anonvector/slipgate/internal/actions"
 	"github.com/anonvector/slipgate/internal/binary"
 	"github.com/anonvector/slipgate/internal/config"
+	"github.com/anonvector/slipgate/internal/proxy"
 	"github.com/anonvector/slipgate/internal/version"
 )
 
@@ -48,7 +49,7 @@ func handleSystemUpdate(ctx *actions.Context) error {
 	out.Print("")
 	out.Info("Updating transport binaries...")
 
-	transportBins := []string{"dnstt-server", "slipstream-server", "caddy-naive", "microsocks"}
+	transportBins := []string{"dnstt-server", "slipstream-server", "caddy-naive"}
 	for _, name := range transportBins {
 		binPath := filepath.Join(config.DefaultBinDir, name)
 		if _, err := os.Stat(binPath); os.IsNotExist(err) {
@@ -64,6 +65,42 @@ func handleSystemUpdate(ctx *actions.Context) error {
 			continue
 		}
 		out.Success(fmt.Sprintf("  %s updated", name))
+	}
+
+	// Migrate from microsocks to built-in SOCKS5 proxy
+	microsocksPath := filepath.Join(config.DefaultBinDir, "microsocks")
+	if _, err := os.Stat(microsocksPath); err == nil {
+		out.Print("")
+		out.Info("Migrating from microsocks to built-in SOCKS5 proxy...")
+		cfg := ctx.Config.(*config.Config)
+
+		// Determine listen mode and auth from existing config
+		directSOCKS := false
+		for _, t := range cfg.Tunnels {
+			if t.Transport == config.TransportSOCKS {
+				directSOCKS = true
+			}
+		}
+		user, pass := "", ""
+		if len(cfg.Users) > 0 {
+			user = cfg.Users[0].Username
+			pass = cfg.Users[0].Password
+		}
+
+		var setupErr error
+		if directSOCKS {
+			setupErr = proxy.SetupSOCKSExternal(user, pass)
+		} else if user != "" {
+			setupErr = proxy.SetupSOCKSWithAuth(user, pass)
+		} else {
+			setupErr = proxy.SetupSOCKS()
+		}
+		if setupErr != nil {
+			out.Warning("Failed to migrate SOCKS5 proxy: " + setupErr.Error())
+		} else {
+			os.Remove(microsocksPath)
+			out.Success("Migrated to built-in SOCKS5 proxy")
+		}
 	}
 
 	out.Print("")
