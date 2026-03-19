@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/anonvector/slipgate/internal/config"
 )
@@ -160,6 +161,8 @@ func forward(packet []byte, backend string) ([]byte, error) {
 		return nil, err
 	}
 	defer conn.Close()
+
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
 
 	if _, err := conn.Write(packet); err != nil {
 		return nil, err
