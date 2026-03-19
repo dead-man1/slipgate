@@ -97,7 +97,7 @@ func (r *Router) ListenAndServe() error {
 }
 
 func (r *Router) handleQuery(packet []byte, clientAddr *net.UDPAddr) {
-	// Check for HMAC verification query (_ck.* TXT) first
+	// Check for HMAC verification query first
 	if r.handleVerify(packet, clientAddr) {
 		return
 	}
@@ -107,6 +107,8 @@ func (r *Router) handleQuery(packet []byte, clientAddr *net.UDPAddr) {
 	if domain == "" {
 		return
 	}
+
+	log.Printf("query: %s from %s", domain, clientAddr)
 
 	// Find matching backend
 	r.mu.RLock()

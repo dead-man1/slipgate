@@ -89,6 +89,7 @@ func (r *Router) handleVerify(packet []byte, clientAddr *net.UDPAddr) bool {
 	encoded := strings.Join(labels[:len(labels)-dl], "")
 	decoded, err := verifyEncoding.DecodeString(encoded)
 	if err != nil || len(decoded) != 32 {
+		log.Printf("verify: probe from %s, encoded=%d chars, decoded=%v err=%v (expected 32 bytes)", clientAddr, len(encoded), len(decoded), err)
 		return false
 	}
 
