@@ -33,12 +33,15 @@ func handleTunnelAdd(ctx *actions.Context) error {
 		}
 	}
 	// Direct transports have an implicit backend
-	isDirect := transport_ == config.TransportSSH || transport_ == config.TransportSOCKS
+	isDirect := transport_ == config.TransportSSH || transport_ == config.TransportSOCKS || transport_ == config.TransportWireguard
 	if isDirect {
-		if transport_ == config.TransportSSH {
+		switch transport_ {
+		case config.TransportSSH:
 			backend = config.BackendSSH
-		} else {
+		case config.TransportSOCKS:
 			backend = config.BackendSOCKS
+		case config.TransportWireguard:
+			backend = "wireguard"
 		}
 	}
 	if backend == "" {
@@ -188,6 +191,55 @@ func addSingleTunnel(ctx *actions.Context, cfg *config.Config, transport_, backe
 			DecoyURL: decoyURL,
 			Port:     443,
 		}
+
+	case config.TransportWireguard:
+		out.Info("Installing WireGuard...")
+		if err := transport.EnsureWireguardInstalled(); err != nil {
+			return actions.NewError(actions.TunnelAdd, "failed to install WireGuard", err)
+		}
+
+		out.Info("Enabling IP forwarding...")
+		if err := transport.EnableIPForwarding(); err != nil {
+			out.Warning("Failed to enable IP forwarding: " + err.Error())
+		}
+
+		out.Info("Generating server keypair...")
+		serverPriv, serverPub, err := transport.GenerateWireguardKeys()
+		if err != nil {
+			return actions.NewError(actions.TunnelAdd, "key generation failed", err)
+		}
+
+		out.Info("Generating client keypair...")
+		clientPriv, clientPub, err := transport.GenerateWireguardKeys()
+		if err != nil {
+			return actions.NewError(actions.TunnelAdd, "key generation failed", err)
+		}
+
+		// Save server private key to file
+		privKeyPath := filepath.Join(tunnelDir, "wg-server.key")
+		if err := os.WriteFile(privKeyPath, []byte(serverPriv+"\n"), 0600); err != nil {
+			return actions.NewError(actions.TunnelAdd, "failed to write server key", err)
+		}
+
+		portStr := ctx.GetArg("wg-port")
+		if portStr == "" {
+			portStr = "51820"
+		}
+		port := 51820
+		fmt.Sscanf(portStr, "%d", &port)
+
+		tunnel.Wireguard = &config.WireguardConfig{
+			ListenPort:    port,
+			ServerPrivKey: privKeyPath,
+			ServerPubKey:  serverPub,
+			ClientPrivKey: clientPriv,
+			ClientPubKey:  clientPub,
+			ServerAddress: "10.0.0.1/24",
+			ClientAddress: "10.0.0.2/32",
+			DNS:           "1.1.1.1",
+		}
+
+		out.Success(fmt.Sprintf("Server public key: %s", serverPub))
 	}
 
 	// Add to config and save

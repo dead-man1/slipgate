@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/anonvector/slipgate/internal/actions"
 	"github.com/anonvector/slipgate/internal/config"
@@ -53,13 +54,23 @@ func handleTunnelStatus(ctx *actions.Context) error {
 		if tunnel == nil {
 			return actions.NewError(actions.TunnelStatus, fmt.Sprintf("tunnel %q not found", tag), nil)
 		}
-		return showTunnelStatus(ctx.Output, tunnel)
+		if err := showTunnelStatus(ctx.Output, tunnel); err != nil {
+			return err
+		}
+		if tunnel.Transport == config.TransportDNSTT {
+			showNoizDNSStatus(ctx.Output, tunnel)
+		}
+		return nil
 	}
 
 	// Show all tunnels
 	for i := range cfg.Tunnels {
 		if err := showTunnelStatus(ctx.Output, &cfg.Tunnels[i]); err != nil {
 			ctx.Output.Warning(fmt.Sprintf("Error getting status for %q: %v", cfg.Tunnels[i].Tag, err))
+		}
+		// DNSTT tunnels also serve noizdns clients — show a separate entry
+		if cfg.Tunnels[i].Transport == config.TransportDNSTT {
+			showNoizDNSStatus(ctx.Output, &cfg.Tunnels[i])
 		}
 	}
 	if len(cfg.Tunnels) == 0 {
@@ -77,6 +88,19 @@ func showTunnelStatus(out actions.OutputWriter, tunnel *config.TunnelConfig) err
 	out.Print(fmt.Sprintf("  %-15s %-12s %-8s %-25s %s",
 		tunnel.Tag, tunnel.Transport, tunnel.Backend, tunnel.Domain, status))
 	return nil
+}
+
+// showNoizDNSStatus displays the noizdns variant for a DNSTT tunnel.
+// NoizDNS shares the same server process, so it mirrors the DNSTT tunnel's status.
+func showNoizDNSStatus(out actions.OutputWriter, tunnel *config.TunnelConfig) {
+	svcName := service.TunnelServiceName(tunnel.Tag)
+	status, err := service.Status(svcName)
+	if err != nil {
+		status = "unknown"
+	}
+	tag := strings.ReplaceAll(tunnel.Tag, "dnstt", "noizdns")
+	out.Print(fmt.Sprintf("  %-15s %-12s %-8s %-25s %s",
+		tag, "noizdns", tunnel.Backend, tunnel.Domain, status))
 }
 
 func handleTunnelLogs(ctx *actions.Context) error {

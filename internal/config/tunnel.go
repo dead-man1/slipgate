@@ -7,6 +7,7 @@ const (
 	TransportNaive      = "naive"
 	TransportSSH        = "direct-ssh"
 	TransportSOCKS      = "direct-socks5"
+	TransportWireguard  = "wireguard"
 )
 
 // TunnelConfig defines a single tunnel.
@@ -22,6 +23,7 @@ type TunnelConfig struct {
 	DNSTT      *DNSTTConfig      `json:"dnstt,omitempty"`
 	Slipstream *SlipstreamConfig `json:"slipstream,omitempty"`
 	Naive      *NaiveConfig      `json:"naive,omitempty"`
+	Wireguard  *WireguardConfig  `json:"wireguard,omitempty"`
 }
 
 // DNSTTConfig holds config for DNSTT transport (serves both DNSTT and NoizDNS clients).
@@ -46,6 +48,18 @@ type NaiveConfig struct {
 	Password string `json:"password,omitempty"`
 }
 
+// WireguardConfig holds config for WireGuard transport.
+type WireguardConfig struct {
+	ListenPort    int    `json:"listen_port"`
+	ServerPrivKey string `json:"server_priv_key"` // path to key file
+	ServerPubKey  string `json:"server_pub_key"`  // base64-encoded
+	ClientPrivKey string `json:"client_priv_key"` // base64-encoded (generated for sharing)
+	ClientPubKey  string `json:"client_pub_key"`  // base64-encoded
+	ServerAddress string `json:"server_address"`  // e.g. 10.0.0.1/24
+	ClientAddress string `json:"client_address"`  // e.g. 10.0.0.2/32
+	DNS           string `json:"dns"`             // e.g. 1.1.1.1
+}
+
 // IsDNSTunnel returns true if the transport uses DNS port 53.
 func (t *TunnelConfig) IsDNSTunnel() bool {
 	switch t.Transport {
@@ -58,7 +72,7 @@ func (t *TunnelConfig) IsDNSTunnel() bool {
 // IsDirectTransport returns true for transports that expose a service directly (no tunnel).
 func (t *TunnelConfig) IsDirectTransport() bool {
 	switch t.Transport {
-	case TransportSSH, TransportSOCKS:
+	case TransportSSH, TransportSOCKS, TransportWireguard:
 		return true
 	}
 	return false

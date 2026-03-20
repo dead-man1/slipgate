@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/anonvector/slipgate/internal/actions"
 	"github.com/anonvector/slipgate/internal/config"
@@ -40,6 +41,12 @@ func handleRouterStatus(ctx *actions.Context) error {
 		}
 		out.Print(fmt.Sprintf(" %s%-15s %-12s %-8s %-25s %s",
 			marker, t.Tag, t.Transport, t.Backend, t.Domain, status))
+		// DNSTT tunnels also serve noizdns clients
+		if t.Transport == config.TransportDNSTT {
+			noizTag := strings.ReplaceAll(t.Tag, "dnstt", "noizdns")
+			out.Print(fmt.Sprintf("  %-15s %-12s %-8s %-25s %s",
+				noizTag, "noizdns", t.Backend, t.Domain, status))
+		}
 	}
 
 	if len(cfg.Tunnels) == 0 {

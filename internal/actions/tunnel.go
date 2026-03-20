@@ -14,6 +14,7 @@ func init() {
 			{Key: "public-key", Label: "Public key (hex, DNSTT only)", DependsOn: "transport", DependsOnValues: []string{"dnstt"}},
 			{Key: "email", Label: "Email (for Let's Encrypt)", DependsOn: "transport", DependsOnValues: []string{"naive"}},
 			{Key: "decoy-url", Label: "Decoy URL", DependsOn: "transport", DependsOnValues: []string{"naive"}},
+			{Key: "wg-port", Label: "WireGuard listen port", DependsOn: "transport", DependsOnValues: []string{"wireguard"}, Default: "51820"},
 		},
 	})
 
