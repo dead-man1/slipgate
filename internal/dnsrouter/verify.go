@@ -116,19 +116,26 @@ func (r *Router) handleVerify(packet []byte, clientAddr *net.UDPAddr) bool {
 
 	respEncoded := verifyEncoding.EncodeToString(respBytes)
 
-	// Pad response to look like real tunnel traffic, but cap total at 468 bytes
-	// to stay safely under 512-byte UDP limit and avoid IP fragmentation.
-	// Fragmented DNS responses are dropped by many resolvers and middleboxes.
+	// Pad response to match real dnstt/noizdns tunnel response sizes.
+	// Use EDNS0 OPT record so resolvers know we support large UDP responses
+	// (without EDNS0, resolvers truncate at 512 bytes and drop the payload).
+	ednsPayloadSize := 1232 // dnsflagday standard
 	if vr.mtu > 0 {
-		overhead := qEnd + 25
-		maxTotal := 468 // safe UDP DNS limit (well under 512)
-		targetTXT := maxTotal - overhead
+		// Account for: Header(12) + Question(qEnd-12) + Answer overhead(14) + EDNS0 OPT(11)
+		overhead := qEnd + 14 + 11
+		targetTXT := vr.mtu - overhead
+		if targetTXT < 52 {
+			targetTXT = 52
+		}
 		if targetTXT > len(respEncoded) {
 			respEncoded = padResponse(respEncoded, targetTXT)
 		}
+		if vr.mtu > ednsPayloadSize {
+			ednsPayloadSize = vr.mtu
+		}
 	}
 
-	resp := buildTXTResponse(packet, qEnd, respEncoded)
+	resp := buildTXTResponseWithEDNS(packet, qEnd, respEncoded, ednsPayloadSize)
 	if _, err := r.conn.WriteToUDP(resp, clientAddr); err != nil {
 		log.Printf("verify: write: %v", err)
 	}
@@ -174,9 +181,9 @@ func (r *Router) findVerifyRoute(labels []string) *verifyRoute {
 	return nil
 }
 
-// buildTXTResponse constructs a minimal DNS TXT response.
-// For TXT data longer than 255 bytes, splits into multiple character-strings.
-func buildTXTResponse(query []byte, qEnd int, txt string) []byte {
+// buildTXTResponseWithEDNS constructs a DNS TXT response with EDNS0 OPT record.
+// Matches real dnstt-server responses: TXT answer + EDNS0 with advertised UDP size.
+func buildTXTResponseWithEDNS(query []byte, qEnd int, txt string, ednsPayloadSize int) []byte {
 	var resp []byte
 
 	// Header
@@ -185,7 +192,7 @@ func buildTXTResponse(query []byte, qEnd int, txt string) []byte {
 	resp = append(resp, 0x00, 0x01)                 // QDCOUNT = 1
 	resp = append(resp, 0x00, 0x01)                 // ANCOUNT = 1
 	resp = append(resp, 0x00, 0x00)                 // NSCOUNT = 0
-	resp = append(resp, 0x00, 0x00)                 // ARCOUNT = 0
+	resp = append(resp, 0x00, 0x01)                 // ARCOUNT = 1 (EDNS0 OPT)
 
 	// Question section (copy from query)
 	resp = append(resp, query[12:qEnd]...)
@@ -194,7 +201,7 @@ func buildTXTResponse(query []byte, qEnd int, txt string) []byte {
 	resp = append(resp, 0xC0, 0x0C)              // name pointer to offset 12
 	resp = append(resp, 0x00, 0x10)              // TYPE = TXT
 	resp = append(resp, 0x00, 0x01)              // CLASS = IN
-	resp = append(resp, 0x00, 0x00, 0x00, 0x00) // TTL = 0 (don't cache verify responses)
+	resp = append(resp, 0x00, 0x00, 0x00, 0x00) // TTL = 0
 
 	// Build RDATA with character-strings (max 255 bytes each)
 	txtBytes := []byte(txt)
@@ -212,6 +219,13 @@ func buildTXTResponse(query []byte, qEnd int, txt string) []byte {
 	// RDLENGTH
 	resp = append(resp, byte(len(rdata)>>8), byte(len(rdata)))
 	resp = append(resp, rdata...)
+
+	// EDNS0 OPT pseudo-RR (RFC 6891)
+	resp = append(resp, 0x00)                                                   // Name: root
+	resp = append(resp, 0x00, 0x29)                                             // TYPE: OPT (41)
+	resp = append(resp, byte(ednsPayloadSize>>8), byte(ednsPayloadSize&0xFF))   // CLASS: UDP payload size
+	resp = append(resp, 0x00, 0x00, 0x00, 0x00)                                // TTL: extended RCODE(0) + version(0) + flags(0)
+	resp = append(resp, 0x00, 0x00)                                             // RDLENGTH: 0
 
 	return resp
 }
