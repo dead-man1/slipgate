@@ -8,7 +8,6 @@ var TransportOptions = []SelectOption{
 	{Value: "naive", Label: "NaiveProxy — HTTPS proxy with Caddy"},
 	{Value: "direct-ssh", Label: "SSH — Direct SSH tunnel"},
 	{Value: "direct-socks5", Label: "SOCKS5 — Direct SOCKS5 proxy"},
-	{Value: "wireguard", Label: "WireGuard — WireGuard VPN tunnel"},
 }
 
 // ClientModeOptions is used during `tunnel share` to pick the slipnet:// URL type.

@@ -16,8 +16,6 @@ func CreateService(tunnel *config.TunnelConfig, cfg *config.Config) error {
 		return createSlipstreamService(tunnel, cfg)
 	case config.TransportNaive:
 		return createNaiveService(tunnel, cfg)
-	case config.TransportWireguard:
-		return createWireguardService(tunnel, cfg)
 	case config.TransportSSH, config.TransportSOCKS:
 		// Direct transports use existing system services (sshd, microsocks)
 		return nil

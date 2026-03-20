@@ -4,7 +4,7 @@ Unified tunnel manager for Linux servers. Manages DNS tunnels (DNSTT, NoizDNS, S
 
 ## Features
 
-- **Multi-transport**: DNSTT/NoizDNS (DNS tunnels with Curve25519 encryption), Slipstream (QUIC-based DNS), NaiveProxy (HTTPS with Caddy), WireGuard (UDP VPN)
+- **Multi-transport**: DNSTT/NoizDNS (DNS tunnels with Curve25519 encryption), Slipstream (QUIC-based DNS), NaiveProxy (HTTPS with Caddy)
 - **Dual backend**: Built-in SOCKS5 proxy or SSH forwarding
 - **DNS routing**: Single-tunnel or multi-tunnel mode with domain-based dispatch
 - **User management**: Managed SSH + SOCKS credentials per user
@@ -18,7 +18,7 @@ Unified tunnel manager for Linux servers. Manages DNS tunnels (DNSTT, NoizDNS, S
 
 - **OS**: Linux (Ubuntu 20.04+, Debian 11+, or similar)
 - **Domain**: DNS A record pointed at your server (required for DNS tunnels and NaiveProxy)
-- **Ports**: 53/udp (DNS tunnels), 443/tcp (NaiveProxy), 51820/udp (WireGuard)
+- **Ports**: 53/udp (DNS tunnels), 443/tcp (NaiveProxy)
 
 ## Quick Start
 
@@ -141,12 +141,6 @@ sudo slipgate tunnel add \
   --email admin@example.com \
   --decoy-url https://www.wikipedia.org
 
-# WireGuard tunnel
-sudo slipgate tunnel add --transport wireguard --tag mywg
-
-# WireGuard with custom port
-sudo slipgate tunnel add --transport wireguard --tag mywg --wg-port 51820
-
 # Direct SSH / SOCKS5 transports
 sudo slipgate tunnel add --transport direct-ssh --tag myssh
 sudo slipgate tunnel add --transport direct-socks5 --tag mysocks
@@ -161,29 +155,29 @@ sudo slipgate tunnel share mydnstt
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                              SERVER                                  │
-│                                                                      │
-│  DNS (port 53)              HTTPS (port 443)     UDP (port 51820)    │
-│       │                          │                      │            │
-│       v                          v                      v            │
-│  ┌──────────────────┐   ┌─────────────────┐   ┌──────────────────┐  │
-│  │    DNS Router     │   │ NaiveProxy      │   │    WireGuard     │  │
-│  │ single/multi mode │   │ (Caddy + decoy) │   │   (wg-quick)    │  │
-│  └──┬──────────┬─────┘   └────────┬────────┘   └────────┬───────┘  │
-│     │          │                  │                      │          │
-│     v          v                  │                      │          │
-│  ┌──────────┐ ┌───────────┐      │                      │          │
-│  │DNSTT/Noiz│ │Slipstream │      │                      │          │
-│  └────┬─────┘ └─────┬─────┘      │                      │          │
-│       v             v             v                      v          │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                       Backend                                 │   │
-│  │          SOCKS5 (built-in) / SSH / WireGuard VPN              │   │
-│  └──────────────────────────┬───────────────────────────────────┘   │
-│                              v                                      │
-│                          Internet                                    │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                            SERVER                             │
+│                                                               │
+│  DNS (port 53)              HTTPS (port 443)                  │
+│       │                          │                            │
+│       v                          v                            │
+│  ┌──────────────────┐   ┌─────────────────┐                  │
+│  │    DNS Router     │   │ NaiveProxy      │                  │
+│  │ single/multi mode │   │ (Caddy + decoy) │                  │
+│  └──┬──────────┬─────┘   └────────┬────────┘                  │
+│     │          │                  │                            │
+│     v          v                  │                            │
+│  ┌──────────┐ ┌───────────┐      │                            │
+│  │DNSTT/Noiz│ │Slipstream │      │                            │
+│  └────┬─────┘ └─────┬─────┘      │                            │
+│       v             v             v                            │
+│  ┌──────────────────────────────────────────────────────┐     │
+│  │                     Backend                            │     │
+│  │              SOCKS5 (built-in) / SSH                   │     │
+│  └──────────────────────┬─────────────────────────────┘     │
+│                          v                                    │
+│                      Internet                                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Transport Types
@@ -193,7 +187,6 @@ sudo slipgate tunnel share mydnstt
 | **DNSTT/NoizDNS** | DNS | 53/udp | Curve25519 encrypted DNS tunnel. A single server serves both DNSTT and NoizDNS clients. NoizDNS adds DPI evasion with base36/hex encoding and CDN prefix stripping |
 | **Slipstream** | QUIC DNS | 53/udp | QUIC-based tunnel with certificate authentication |
 | **NaiveProxy** | HTTPS | 443/tcp | Caddy with forwardproxy plugin. Auto-TLS via Let's Encrypt. Probe-resistant with decoy site |
-| **WireGuard** | UDP | 51820/udp | WireGuard VPN tunnel. Auto-installs, generates keypairs, configures IP forwarding |
 
 ### Domain Layout
 
@@ -235,8 +228,6 @@ sudo slipgate tunnel share mytunnel
 ```
 
 This outputs a `slipnet://` URI that can be scanned or imported into the SlipNet Android app. For DNSTT tunnels, you'll be asked to choose between a DNSTT or NoizDNS client profile — both connect to the same server, but NoizDNS profiles enable DPI evasion on the client side.
-
-For WireGuard tunnels, `tunnel share` outputs a standard wg-quick config that you paste directly into the SlipNet app's WireGuard profile.
 
 ## File Locations
 

@@ -4,9 +4,7 @@ import (
 	"github.com/anonvector/slipgate/internal/actions"
 	"github.com/anonvector/slipgate/internal/clientcfg"
 	"github.com/anonvector/slipgate/internal/config"
-	"github.com/anonvector/slipgate/internal/network"
 	"github.com/anonvector/slipgate/internal/prompt"
-	"github.com/anonvector/slipgate/internal/transport"
 )
 
 func handleTunnelShare(ctx *actions.Context) error {
@@ -57,18 +55,6 @@ func handleTunnelShare(ctx *actions.Context) error {
 			opts.Username = user.Username
 			opts.Password = user.Password
 		}
-	}
-
-	// WireGuard tunnels output wg-quick config instead of a URI
-	if tunnel.Transport == config.TransportWireguard && tunnel.Wireguard != nil {
-		serverIP := network.PublicIP()
-		if serverIP == "" {
-			return actions.NewError(actions.TunnelShare, "could not detect server public IP", nil)
-		}
-		clientConf := transport.GenerateClientConfig(tunnel, serverIP)
-		ctx.Output.Print("\n" + clientConf)
-		ctx.Output.Info("Paste this config into the SlipNet app WireGuard profile")
-		return nil
 	}
 
 	uri, err := clientcfg.GenerateURI(tunnel, backend, cfg, opts)

@@ -9,7 +9,6 @@ import (
 	"github.com/anonvector/slipgate/internal/prompt"
 	"github.com/anonvector/slipgate/internal/router"
 	"github.com/anonvector/slipgate/internal/service"
-	"github.com/anonvector/slipgate/internal/transport"
 )
 
 func handleTunnelRemove(ctx *actions.Context) error {
@@ -36,13 +35,9 @@ func handleTunnelRemove(ctx *actions.Context) error {
 	}
 
 	// Stop and remove service
-	if tunnel.Transport == config.TransportWireguard {
-		_ = transport.RemoveWireguardService(tag)
-	} else {
-		svcName := service.TunnelServiceName(tag)
-		_ = service.Stop(svcName)
-		_ = service.Remove(svcName)
-	}
+	svcName := service.TunnelServiceName(tag)
+	_ = service.Stop(svcName)
+	_ = service.Remove(svcName)
 
 	// Remove from router
 	_ = router.RemoveTunnel(cfg, tag)
