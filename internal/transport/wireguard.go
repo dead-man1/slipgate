@@ -35,10 +35,22 @@ func EnsureWireguardInstalled() error {
 		s := string(data)
 		switch {
 		case strings.Contains(s, "ubuntu") || strings.Contains(s, "debian") || strings.Contains(s, "Ubuntu") || strings.Contains(s, "Debian"):
-			cmd := exec.Command("apt-get", "install", "-y", "wireguard")
+			// Ensure wireguard is available in apt sources
+			_ = exec.Command("apt-get", "update", "-qq").Run()
+			cmd := exec.Command("apt-get", "install", "-y", "wireguard-tools")
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			return cmd.Run()
+			if err := cmd.Run(); err != nil {
+				// Fallback: try adding the PPA for older Ubuntu
+				_ = exec.Command("apt-get", "install", "-y", "software-properties-common").Run()
+				_ = exec.Command("add-apt-repository", "-y", "ppa:wireguard/wireguard").Run()
+				_ = exec.Command("apt-get", "update", "-qq").Run()
+				cmd2 := exec.Command("apt-get", "install", "-y", "wireguard-tools")
+				cmd2.Stdout = os.Stdout
+				cmd2.Stderr = os.Stderr
+				return cmd2.Run()
+			}
+			return nil
 		case strings.Contains(s, "centos") || strings.Contains(s, "rhel") || strings.Contains(s, "fedora"):
 			cmd := exec.Command("yum", "install", "-y", "wireguard-tools")
 			cmd.Stdout = os.Stdout

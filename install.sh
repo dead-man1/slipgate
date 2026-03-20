@@ -29,15 +29,17 @@ OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 [[ "$OS" != "linux" ]] && error "SlipGate only supports Linux"
 
 BINARY="slipgate-${OS}-${ARCH}"
+
+# Try GitHub release first, fall back to building from source
 URL="https://github.com/${REPO}/releases/latest/download/${BINARY}"
 
 echo -e "${CYAN}"
 echo "   _____ _ _       _____       _       "
 echo "  / ____| (_)     / ____|     | |      "
 echo " | (___ | |_ _ __| |  __  __ _| |_ ___ "
-echo "  \\___ \\| | | '_ \\ | |_ |/ _\` | __/ _ \\"
+echo "  \___ \| | | '_ \ | |_ |/ _\` | __/ _ \\"
 echo "  ____) | | | |_) | |__| | (_| | ||  __/"
-echo " |_____/|_|_| .__/ \\_____|\\__,_|\\__\\___|"
+echo " |_____/|_|_| .__/ \_____|\__,_|\__\___|"
 echo "             | |                         "
 echo "             |_|                         "
 echo -e "${NC}"
