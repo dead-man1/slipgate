@@ -14,14 +14,16 @@ import (
 // so the probe looks identical to a normal dnstt/noizdns tunnel query.
 var verifyEncoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding(base32.NoPadding)
 
-// VerifyResolver probes host:port up to 3 times with different nonces.
-// Returns true on the first successful round-trip (handles UDP packet loss).
-// A success proves the resolver forwards DNS to our specific server AND the
-// server holds the correct key — without any detectable special prefix.
+// VerifyResolver sends 5 probes with different nonces.
+// Returns true if 3+ succeed (tolerates UDP packet loss).
 func VerifyResolver(host string, port int, domain string, pubkey []byte, timeoutMs int) bool {
-	for i := 0; i < 3; i++ {
+	passed := 0
+	for i := 0; i < 5; i++ {
 		if verifyOnce(host, port, domain, pubkey, timeoutMs) {
-			return true
+			passed++
+			if passed >= 3 {
+				return true
+			}
 		}
 	}
 	return false
