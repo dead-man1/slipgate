@@ -245,13 +245,16 @@ func handleSystemInstall(ctx *actions.Context) error {
 			if backend == "both" {
 				tag = selectedTransport + "-" + b
 				// SSH backend needs its own subdomain (separate dnstt/slipstream instance)
-				// e.g. t.example.com → ts.example.com
 				if b == config.BackendSSH && selectedTransport != config.TransportNaive {
-					parts := splitDomain(domain)
-					if len(parts) >= 2 {
-						parts[0] = parts[0] + "s"
-						tunnelDomain = joinDomain(parts)
+					sshDomain, err := prompt.String(fmt.Sprintf("Domain for %s backend (SSH)", tag), "")
+					if err != nil {
+						return err
 					}
+					if sshDomain == "" {
+						out.Warning(fmt.Sprintf("Skipping %s (no domain)", tag))
+						continue
+					}
+					tunnelDomain = sshDomain
 				}
 			}
 

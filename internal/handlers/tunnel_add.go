@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/anonvector/slipgate/internal/actions"
 	"github.com/anonvector/slipgate/internal/certs"
@@ -77,12 +76,16 @@ func handleTunnelAdd(ctx *actions.Context) error {
 		if backend == "both" {
 			tunnelTag = tag + "-" + b
 			// SSH backend needs its own subdomain for DNS tunnels
-			// e.g. t.example.com → ts.example.com
 			if b == config.BackendSSH && transport_ != config.TransportNaive {
-				parts := strings.SplitN(tunnelDomain, ".", 2)
-				if len(parts) == 2 {
-					tunnelDomain = parts[0] + "s." + parts[1]
+				sshDomain, err := prompt.String(fmt.Sprintf("Domain for %s backend (SSH)", tunnelTag), "")
+				if err != nil {
+					return err
 				}
+				if sshDomain == "" {
+					out.Warning(fmt.Sprintf("Skipping %s (no domain)", tunnelTag))
+					continue
+				}
+				tunnelDomain = sshDomain
 			}
 		}
 
