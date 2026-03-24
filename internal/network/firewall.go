@@ -4,17 +4,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // AllowPort opens a port using the first available firewall tool.
 func AllowPort(port int, proto string) error {
-	// Try UFW first
-	if _, err := exec.LookPath("ufw"); err == nil {
+	// Try UFW first — but only if it's active
+	if _, err := exec.LookPath("ufw"); err == nil && ufwActive() {
 		return ufwAllow(port, proto)
 	}
 
-	// Try firewall-cmd
-	if _, err := exec.LookPath("firewall-cmd"); err == nil {
+	// Try firewall-cmd — but only if it's running
+	if _, err := exec.LookPath("firewall-cmd"); err == nil && firewalldActive() {
 		return firewalldAllow(port, proto)
 	}
 
@@ -28,10 +29,10 @@ func AllowPort(port int, proto string) error {
 
 // RemovePort removes a firewall rule for a port.
 func RemovePort(port int, proto string) error {
-	if _, err := exec.LookPath("ufw"); err == nil {
+	if _, err := exec.LookPath("ufw"); err == nil && ufwActive() {
 		return run("ufw", "delete", "allow", fmt.Sprintf("%d/%s", port, proto))
 	}
-	if _, err := exec.LookPath("firewall-cmd"); err == nil {
+	if _, err := exec.LookPath("firewall-cmd"); err == nil && firewalldActive() {
 		_ = run("firewall-cmd", "--permanent", "--remove-port", fmt.Sprintf("%d/%s", port, proto))
 		return run("firewall-cmd", "--reload")
 	}
@@ -39,6 +40,20 @@ func RemovePort(port int, proto string) error {
 		return run("iptables", "-D", "INPUT", "-p", proto, "--dport", fmt.Sprintf("%d", port), "-j", "ACCEPT")
 	}
 	return nil
+}
+
+// ufwActive checks if UFW is active (not just installed).
+func ufwActive() bool {
+	out, err := exec.Command("ufw", "status").Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), "Status: active")
+}
+
+// firewalldActive checks if firewalld is running.
+func firewalldActive() bool {
+	return exec.Command("firewall-cmd", "--state").Run() == nil
 }
 
 func ufwAllow(port int, proto string) error {
