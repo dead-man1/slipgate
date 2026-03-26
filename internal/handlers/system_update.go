@@ -21,8 +21,8 @@ func handleSystemUpdate(ctx *actions.Context) error {
 	out.Info("Current version: " + version.String())
 	out.Info("Downloading latest slipgate...")
 
-	downloadURL := fmt.Sprintf("%s/latest/download/slipgate-%s-%s",
-		"https://github.com/anonvector/slipgate/releases", runtime.GOOS, runtime.GOARCH)
+	downloadURL := fmt.Sprintf("%s/slipgate-%s-%s",
+		binary.DownloadBase(), runtime.GOOS, runtime.GOARCH)
 
 	tmpPath, err := binary.Download(downloadURL)
 	if err != nil {

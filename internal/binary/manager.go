@@ -18,20 +18,30 @@ import (
 
 var httpClient = &http.Client{Timeout: 120 * time.Second}
 
-const (
-	releaseBaseURL = "https://github.com/anonvector/slipgate/releases"
-	binaryBaseURL  = "https://github.com/anonvector/slipgate/releases/latest/download"
-)
+const releaseBaseURL = "https://github.com/anonvector/slipgate/releases"
 
 // OfflineDir, when set, makes EnsureInstalled copy binaries from this
 // directory instead of downloading. Used for SCP/offline installs.
 var OfflineDir string
 
-// Binary download URLs — all hosted on slipgate releases.
-var binaryURLs = map[string]string{
-	"dnstt-server":      binaryBaseURL + "/dnstt-server-%s-%s",
-	"slipstream-server": binaryBaseURL + "/slipstream-server-%s-%s",
-	"caddy-naive":       binaryBaseURL + "/caddy-naive-%s-%s",
+// DownloadBase returns the base URL for binary downloads.
+// When version.ReleaseTag is set (dev builds), assets are fetched from
+// that specific tag; otherwise from the latest stable release.
+func DownloadBase() string {
+	if version.ReleaseTag != "" {
+		return releaseBaseURL + "/download/" + version.ReleaseTag
+	}
+	return releaseBaseURL + "/latest/download"
+}
+
+// binaryURLs returns download URL templates for each transport binary.
+func binaryURLTemplates() map[string]string {
+	base := DownloadBase()
+	return map[string]string{
+		"dnstt-server":      base + "/dnstt-server-%s-%s",
+		"slipstream-server": base + "/slipstream-server-%s-%s",
+		"caddy-naive":       base + "/caddy-naive-%s-%s",
+	}
 }
 
 // EnsureInstalled checks if a binary exists. If not, copies from OfflineDir
@@ -48,7 +58,7 @@ func EnsureInstalled(name string) error {
 	}
 
 	// Online mode: download from releases
-	urlTemplate, ok := binaryURLs[name]
+	urlTemplate, ok := binaryURLTemplates()[name]
 	if !ok {
 		return fmt.Errorf("unknown binary: %s", name)
 	}
@@ -90,8 +100,12 @@ func installFromOffline(name, destPath string) error {
 }
 
 // CheckUpdate checks GitHub releases for a newer version.
+// Dev builds check their own tag; stable builds check latest.
 func CheckUpdate() (newVersion string, downloadURL string, err error) {
 	apiURL := "https://api.github.com/repos/anonvector/slipgate/releases/latest"
+	if version.ReleaseTag != "" {
+		apiURL = "https://api.github.com/repos/anonvector/slipgate/releases/tags/" + version.ReleaseTag
+	}
 	resp, err := httpClient.Get(apiURL)
 	if err != nil {
 		return "", "", err
