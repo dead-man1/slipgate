@@ -135,14 +135,32 @@ Match Group slipgate-ssh
     X11Forwarding no
     AllowAgentForwarding no
     ForceCommand /bin/false
+    ClientAliveInterval 30
+    ClientAliveCountMax 10
+    TCPKeepAlive no
 `
 	data, err := os.ReadFile("/etc/ssh/sshd_config")
 	if err != nil {
 		return err
 	}
 
-	if strings.Contains(string(data), "Match Group slipgate-ssh") {
-		return nil
+	content := string(data)
+
+	// If the block exists but lacks keepalive settings, replace it
+	if strings.Contains(content, "Match Group slipgate-ssh") {
+		if strings.Contains(content, "ClientAliveInterval") {
+			return nil // already up to date
+		}
+		// Remove the old block and fall through to re-append
+		// Find from "# SlipGate SSH tunnel users" to the end of the Match block
+		if idx := strings.Index(content, "# SlipGate SSH tunnel users"); idx >= 0 {
+			content = strings.TrimRight(content[:idx], "\n") + "\n"
+			if err := os.WriteFile("/etc/ssh/sshd_config", []byte(content), 0644); err != nil {
+				return err
+			}
+		} else {
+			return nil // can't safely remove, skip
+		}
 	}
 
 	f, err := os.OpenFile("/etc/ssh/sshd_config", os.O_APPEND|os.O_WRONLY, 0644)
