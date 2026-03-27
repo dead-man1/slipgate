@@ -25,7 +25,7 @@ func CreateService(tunnel *config.TunnelConfig, cfg *config.Config) error {
 }
 
 func createDNSTTService(tunnel *config.TunnelConfig, cfg *config.Config) error {
-	svc, err := buildDNSTTService(tunnel, cfg)
+	execStart, err := buildDNSTTExecStart(tunnel, cfg)
 	if err != nil {
 		return err
 	}
@@ -33,12 +33,11 @@ func createDNSTTService(tunnel *config.TunnelConfig, cfg *config.Config) error {
 	unit := &service.Unit{
 		Name:        service.TunnelServiceName(tunnel.Tag),
 		Description: fmt.Sprintf("SlipGate tunnel: %s (%s/%s)", tunnel.Tag, tunnel.Transport, tunnel.Backend),
-		ExecStart:   svc.execStart,
+		ExecStart:   execStart,
 		User:        "root",
 		Group:       config.SystemGroup,
 		After:       "network.target",
 		Restart:     "always",
-		Environment: svc.environment,
 	}
 
 	if err := service.Create(unit); err != nil {
