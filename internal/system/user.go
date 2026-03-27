@@ -128,6 +128,11 @@ func GeneratePassword(length int) string {
 }
 
 func ensureSSHMatchGroup() error {
+	const globalSettings = `
+# SlipGate global SSH settings
+MaxStartups 100:30:300
+MaxSessions 100
+`
 	const matchBlock = `
 # SlipGate SSH tunnel users
 Match Group slipgate-ssh
@@ -145,32 +150,52 @@ Match Group slipgate-ssh
 	}
 
 	content := string(data)
+	changed := false
 
-	// If the block exists but lacks keepalive settings, replace it
+	// Ensure global settings are present (must be before any Match block)
+	if !strings.Contains(content, "# SlipGate global SSH settings") {
+		// Insert before the first Match block or SlipGate block, or append
+		if idx := strings.Index(content, "# SlipGate SSH tunnel users"); idx >= 0 {
+			content = content[:idx] + globalSettings + "\n" + content[idx:]
+		} else if idx := strings.Index(content, "\nMatch "); idx >= 0 {
+			content = content[:idx] + globalSettings + content[idx:]
+		} else {
+			content += globalSettings
+		}
+		changed = true
+	}
+
+	// If the Match block exists but lacks keepalive settings, replace it
 	if strings.Contains(content, "Match Group slipgate-ssh") {
-		if strings.Contains(content, "ClientAliveInterval") {
+		if strings.Contains(content, "ClientAliveInterval") && !changed {
 			return nil // already up to date
 		}
-		// Remove the old block and fall through to re-append
-		// Find from "# SlipGate SSH tunnel users" to the end of the Match block
+		// Remove the old Match block and fall through to re-append
 		if idx := strings.Index(content, "# SlipGate SSH tunnel users"); idx >= 0 {
 			content = strings.TrimRight(content[:idx], "\n") + "\n"
-			if err := os.WriteFile("/etc/ssh/sshd_config", []byte(content), 0644); err != nil {
-				return err
-			}
-		} else {
+			changed = true
+		} else if !changed {
 			return nil // can't safely remove, skip
 		}
 	}
 
-	f, err := os.OpenFile("/etc/ssh/sshd_config", os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
+	if changed {
+		if err := os.WriteFile("/etc/ssh/sshd_config", []byte(content), 0644); err != nil {
+			return err
+		}
 	}
-	defer f.Close()
 
-	if _, err := f.WriteString(matchBlock); err != nil {
-		return err
+	// Append Match block if not present
+	if !strings.Contains(content, "Match Group slipgate-ssh") {
+		f, err := os.OpenFile("/etc/ssh/sshd_config", os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		if _, err := f.WriteString(matchBlock); err != nil {
+			return err
+		}
 	}
 
 	// Try "sshd" (RHEL/CentOS) first, then "ssh" (Debian/Ubuntu)
