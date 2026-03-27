@@ -198,9 +198,19 @@ Match Group slipgate-ssh
 		}
 	}
 
-	// Try "sshd" (RHEL/CentOS) first, then "ssh" (Debian/Ubuntu)
-	if err := run("systemctl", "reload", "sshd"); err != nil {
-		return run("systemctl", "reload", "ssh")
+	// Validate config before restarting
+	if err := run("sshd", "-t"); err != nil {
+		return fmt.Errorf("sshd config validation failed: %w", err)
+	}
+
+	// Try reload first, fall back to restart (needed on Ubuntu 24.04+ with socket activation)
+	for _, svc := range []string{"sshd", "ssh"} {
+		if exec.Command("systemctl", "is-active", svc+".service").Run() == nil {
+			if err := run("systemctl", "reload", svc); err == nil {
+				return nil
+			}
+			return run("systemctl", "restart", svc)
+		}
 	}
 	return nil
 }

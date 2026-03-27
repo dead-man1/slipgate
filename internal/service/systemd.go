@@ -41,6 +41,7 @@ Group=%s
 ExecStart=%s
 Restart=%s
 RestartSec=5
+StartLimitBurst=0
 `, u.Description, u.After, u.User, u.Group, u.ExecStart, u.Restart)
 
 	if u.WorkingDir != "" {
