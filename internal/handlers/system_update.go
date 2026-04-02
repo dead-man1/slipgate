@@ -21,10 +21,10 @@ import (
 func handleSystemUpdate(ctx *actions.Context) error {
 	out := ctx.Output
 	out.Info("Current version: " + version.String())
-	out.Info("Downloading latest slipgate...")
 
-	downloadURL := fmt.Sprintf("%s/slipgate-%s-%s",
-		binary.DownloadBase(), runtime.GOOS, runtime.GOARCH)
+	base := binary.DownloadBase()
+	downloadURL := fmt.Sprintf("%s/slipgate-%s-%s", base, runtime.GOOS, runtime.GOARCH)
+	out.Info("Downloading from: " + downloadURL)
 
 	tmpPath, err := binary.Download(downloadURL)
 	if err != nil {
